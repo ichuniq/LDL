@@ -43,7 +43,7 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
     reg [7:0] cost, balance;  // balance: money that has been deposited so far
     reg [7:0] next_cost, next_balance;
     reg flag_A, flag_B, next_flag_A, next_flag_B;
-    //reg [3:0] left1, left0, right1, right0;
+
     wire clk_select;
     assign clk_select = (state > `DEPOSIT)? clk_div_26 : clk_div_16;
     // FSM
@@ -89,13 +89,14 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
                     enough_A = (balance >= 8'd20)? 1:0;
                     enough_B = (balance >= 8'd25)? 1:0;
                     if (op_money_5) begin
-                        next_balance = (balance+8'd5 >= 8'd95)? 8'd95 : balance + 8'd5;
+                        next_balance = (balance + 8'd5 >= 8'd95)? 8'd95 : balance + 8'd5;
                     end else if (op_money_10) begin
-                        next_balance = (balance+8'd10 >= 8'd95)? 8'd95 : balance + 8'd10;
+                        next_balance = (balance + 8'd10 >= 8'd95)? 8'd95 : balance + 8'd10;
                     end else if (op_drink_A) begin
+                        // if push the same drink second time, go to BUY state
                         if ((cost==8'd20) && (balance >= cost)) begin
-                            //push the same drink second time, go to BUY state
                             next_cost = 8'd0;
+                            next_balance = balance - cost;
                             next_flag_A = 1'b1;
                             next_state = `BUY;
                         end else begin
@@ -104,6 +105,7 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
                     end else if (op_drink_B) begin
                         if ((cost==8'd25) && (balance >= cost)) begin
                             next_cost = 8'd0;
+                            next_balance = balance - cost;
                             next_flag_B = 1'b1;
                             next_state = `BUY;
                         end else begin
@@ -113,11 +115,9 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
                 end
             end
             `BUY: begin
-                // show drink name for one cycle
+                // show drink's name for one cycle
                 enough_A = 1'b0;
                 enough_B = 1'b0;
-                next_cost = 8'd0;
-                next_balance = balance - cost;
                 next_state = `CHANGE;
             end
             `CHANGE: begin
@@ -130,8 +130,8 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
                         next_balance = 8'd0;
                         drop_money = 10'b0000011111;
                     end else  begin
-                        drop_money = 10'b1111111111;
                         next_balance = balance - 8'd10;
+                        drop_money = 10'b1111111111;
                     end
                 end
             end
@@ -139,10 +139,10 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
         endcase
     end
 
-    assign BCD3 = (state==`BUY && flag_A)? 4'd0: (state==`BUY && flag_B)? 4'd1:cost/10;
-    assign BCD2 = (state==`BUY && flag_A)? 4'd0: (state==`BUY && flag_B)? 4'd1:cost%10;
-    assign BCD1 = (state==`BUY && flag_A)? 4'd0: (state==`BUY && flag_B)? 4'd1:balance/10;
-    assign BCD0 = (state==`BUY && flag_A)? 4'd0: (state==`BUY && flag_B)? 4'd1:balance%10;
+    assign BCD3 = (state==`BUY && flag_A)? 4'd10: (state==`BUY && flag_B)? 4'd11 : cost/10;
+    assign BCD2 = (state==`BUY && flag_A)? 4'd10: (state==`BUY && flag_B)? 4'd11 : cost%10;
+    assign BCD1 = (state==`BUY && flag_A)? 4'd10: (state==`BUY && flag_B)? 4'd11 : balance/10;
+    assign BCD0 = (state==`BUY && flag_A)? 4'd10: (state==`BUY && flag_B)? 4'd11 : balance%10;
 
     seven_segment s1 (clk_div_13, rst, BCD0, BCD1, BCD2, BCD3, DIGIT, DISPLAY);
 
@@ -256,6 +256,8 @@ module seven_segment(clk, reset, BCD0, BCD1, BCD2, BCD3, DIGIT, DISPLAY);
             4'd7: DISPLAY = 7'b0001111;
             4'd8: DISPLAY = 7'b0000000;
             4'd9: DISPLAY = 7'b0000100;
+            4'd10: DISPLAY = 7'b0000010; //a
+            4'd11: DISPLAY = 7'b1100000; //b
             default: DISPLAY = 7'b0000100;
         endcase
    end
