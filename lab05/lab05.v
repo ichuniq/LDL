@@ -43,6 +43,8 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
     reg [7:0] cost, balance;  // balance: money that has been deposited so far
     reg [7:0] next_cost, next_balance;
     reg flag_A, flag_B, next_flag_A, next_flag_B;
+    wire idle;
+    reg start_idle;
 
     wire clk_select;
     assign clk_select = (state > `DEPOSIT)? clk_div_26 : clk_div_16;
@@ -72,6 +74,7 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
         enough_A = 1'b0;
         enough_B = 1'b0;
         drop_money = 10'b0;
+        start_idle = 1'b0;
         case (state)
             `INITIAL: begin
                 next_cost = 8'd0;
@@ -81,7 +84,7 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
                 next_state = `DEPOSIT;
             end
             `DEPOSIT: begin
-                if (op_cancel) begin
+                if (op_cancel || idle) begin
                     next_state = `CHANGE;
                     next_cost = 8'd0;
                 end else begin
@@ -111,6 +114,8 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
                         end else begin
                             next_cost = 8'd25;
                         end
+                    end else begin
+                        start_idle = 1'b1;
                     end
                 end
             end
@@ -145,6 +150,18 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
     assign BCD0 = (state==`BUY && flag_A)? 4'd10: (state==`BUY && flag_B)? 4'd11 : balance%10;
 
     seven_segment s1 (clk_div_13, rst, BCD0, BCD1, BCD2, BCD3, DIGIT, DISPLAY);
+
+    // Trigger idle when no actio for 5-10s
+    reg [14-1:0] num;
+    wire [14-1:0] next_num;
+    always @ (posedge clk_div_16 or posedge rst) begin
+        if (rst)
+            num <= 14'd0;
+        else
+            num <= next_num;
+    end
+    assign next_num = (start_idle)? num + 1 : 14'd0;
+    assign idle = num[14-1];
 
 endmodule
 
