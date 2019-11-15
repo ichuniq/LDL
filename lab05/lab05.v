@@ -151,7 +151,7 @@ module lab05(clk, rst, money_5, money_10, cancel, drink_A, drink_B, drop_money, 
 
     seven_segment s1 (clk_div_13, rst, BCD0, BCD1, BCD2, BCD3, DIGIT, DISPLAY);
 
-    // Trigger idle when no actio for 5-10s
+    // Trigger idle when no action for 5-10s
     reg [14-1:0] num;
     wire [14-1:0] next_num;
     always @ (posedge clk_div_16 or posedge rst) begin
