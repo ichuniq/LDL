@@ -1,6 +1,7 @@
-`define INITIAL 3'b001
-`define READ 3'b010
-`define END  3'b100
+`define INITIAL 4'b0001
+`define READ 4'b0010
+`define END  4'b0100
+`define CHEAT  4'b1000
 
 module lab06(
     output wire [6:0] DISPLAY,
@@ -13,7 +14,7 @@ module lab06(
     input wire start,
     input wire cheat
 );
-    parameter [8:0] ENTER = 9'b1_0101_1010; // right enter => E05A
+    parameter [8:0] ENTER = 9'b0_0101_1010; // right enter => E05A
     parameter [8:0] KEY_CODES [0:9] = {
         9'b0_0111_0000, // right_0 => 70
         9'b0_0110_1001, // right_1 => 69
@@ -27,18 +28,16 @@ module lab06(
         9'b0_0111_1101  // right_9 => 7D
     };
 
-    // reg [3:0] right_tens, right_tens_next;
-    // reg [3:0] right_ones, right_ones_next;
-
 	reg [3:0] key_num;
 	reg [9:0] last_key;
 
-	wire enter_down;
+	wire enter_down, enter;
 	wire [511:0] key_down;
 	wire [8:0] last_change;
 	wire been_ready;
 
     assign enter_down = (key_down[ENTER] == 1'b1)? 1'b1 : 1'b0;
+    //assign enter = been_ready & key_down[last_change] & last_change == ENTER;
 
 	KeyboardDecoder key_de (
 		.key_down(key_down),
@@ -49,7 +48,6 @@ module lab06(
 		.rst(rst),
 		.clk(clk)
 	);
-
 
     always @ (*) begin
 		case (last_change)
@@ -67,20 +65,18 @@ module lab06(
 		endcase
 	end
 
-    wire clk_div_13, clk_div_16, clk_div_26;
+    wire clk_div_13, clk_div_16, clk_div_25;
     clock_divider #(.n(13)) c1 (.clk(clk), .clk_div(clk_div_13));
     clock_divider #(.n(16)) c2 (.clk(clk), .clk_div(clk_div_16));
-    clock_divider #(.n(26)) c3 (.clk(clk), .clk_div(clk_div_26));
+    clock_divider #(.n(25)) c3 (.clk(clk), .clk_div(clk_div_25));
 
     wire db_rst, db_start, db_cheat, db_enter;
     debounce d1 (db_rst, rst, clk_div_16);
     debounce d2 (db_start, start, clk_div_16);
     debounce d3 (db_cheat, cheat, clk_div_16);
-    debounce d4 (db_enter, enter_down, clk_div_16);
 
     wire op_start, op_enter;
     one_pulse o1 (db_rst, clk_div_16, db_start, op_start);
-    one_pulse o2 (db_rst, clk_div_16, db_enter, op_enter);
 
     // use counter in clock divider to get a random number
     reg [8-1:0] num;
@@ -98,19 +94,22 @@ module lab06(
     reg [7:0] left, next_left;
     reg [7:0] upper, next_upper;
     reg [7:0] lower, next_lower;
-    reg [9-1:0] count, next_count;
+    reg [25-1:0] count, next_count;
     reg [7:0] goal, next_goal;
 
+    reg press_count, next_press_count;
+
     // FSM
-    always @ (posedge clk_div_16 or posedge db_rst) begin
+    always @ (posedge clk or posedge db_rst) begin
         if (db_rst) begin
             state <= `INITIAL;
             left <= 8'b10101010;    // '- -'
             right <= 8'b10101010;
             upper <= 8'b10011001;   // '9 9'
             lower <= 8'b0;  // '0 0'
-            count <= 9'b0;
+            count <= 25'b0;
             goal <= 8'd0;
+            press_count <= 0;
         end else begin
             state <= next_state;
             left <= next_left;
@@ -119,6 +118,7 @@ module lab06(
             lower <= next_lower;
             count <= next_count;
             goal <= next_goal;
+            press_count <= next_press_count;
         end
     end
 
@@ -129,6 +129,7 @@ module lab06(
         {next_lower, next_upper} = {lower, upper};
         next_count = count;
         next_goal = goal;
+        next_press_count = press_count;
         case (state)
             `INITIAL: begin
                 {next_lower, next_upper} = {8'b0, 8'b1001_1001};
@@ -142,38 +143,58 @@ module lab06(
                 end
             end
             `READ: begin
-                if (been_ready && key_down[last_change] == 1'b1) begin
-                    if (key_num != 4'b1111) begin
+                if ( /*been_ready &&*/ key_down[last_change] == 1'b1) begin
+                    if (key_num != 4'b1111) begin;
+                        LED = 16'b0000_1111_0000_0000;
                         next_left = 8'b1111_1111; // blank
-                        next_right = {right[3:0], key_num};
-                    end else if (op_enter) begin
-                        if (right[7:4] == 4'd10||right < lower||right > upper) begin // If guess is invalid
-                            {next_left, next_right} = {lower, upper};
-                        end else begin
-                            if (right > goal) begin
-                                {next_left, next_right} = {lower, right};
-                                next_upper = right;
-                            end else if (right < goal) begin
-                                {next_left, next_right} = {right, upper};
-                                next_lower = right;
-                            end else begin  // correct
-                                {next_left, next_right} = {goal, goal};
-                                next_state = `END;
+                        if (been_ready) begin
+                            if (press_count == 0) begin
+                                next_right = {4'b1111, key_num};
+                                next_press_count = 1;
+                            end else begin
+                                next_right = {right[3:0], key_num};
+                            end
+                        end
+                    end else if (enter_down) begin
+                        LED = 16'b1111_0000_0000_0000;
+                        next_press_count = 0;
+                        if (been_ready) begin
+                            if (right[7:4] == 4'd10||right <= lower||right >= upper) begin // If guess is invalid
+                                {next_left, next_right} = {lower, upper};
+                            end else begin
+                                if (right > goal) begin
+                                    {next_left, next_right} = {lower, right};
+                                    next_upper = right;
+                                end else if (right < goal) begin
+                                    {next_left, next_right} = {right, upper};
+                                    next_lower = right;
+                                end else begin  // correct
+                                    {next_left, next_right} = {goal, goal};
+                                    next_state = `END;
+                                end
                             end
                         end
                     end
-                end else if (cheat) begin
-                    {next_left, next_right} = {goal, 8'b1111_1111}; //goal, blank
                 end else begin
+                    LED = 16'd15;
+                    if (cheat) begin
+                        next_state = `CHEAT;
+                        {next_left, next_right} = {goal, 8'b1111_1111}; //goal, blank
+                    end
+                end
+            end
+            `CHEAT: begin
+                if (cheat == 0) begin
                     {next_left, next_right} = {lower, upper};
+                    next_state = `READ;
                 end
             end
             `END: begin
-                LED = 16'b1111111111111111;
-                // use a count to stay in this state for 1 clk/2^25 cycle
+                LED = 16'b1111_1111_1111_1111;
+                // use a count to stay in this state for longer
                 next_count = count + 1;
-                if (count == 9'b111111111) begin
-                    next_count = 9'b0;
+                if (count == 25'd33554431) begin
+                    next_count = 25'b0;
                     {next_left, next_right} = {8'b1010_1010, 8'b1010_1010}; // '-- --'
                     next_state = `INITIAL;
                 end
