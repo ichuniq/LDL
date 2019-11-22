@@ -37,7 +37,6 @@ module lab06(
 	wire been_ready;
 
     assign enter_down = (key_down[ENTER] == 1'b1)? 1'b1 : 1'b0;
-    //assign enter = been_ready & key_down[last_change] & last_change == ENTER;
 
 	KeyboardDecoder key_de (
 		.key_down(key_down),
@@ -85,9 +84,9 @@ module lab06(
         if (db_rst)
             num <= 8'd0;
         else
-            num <= next_num;
+            num <= next_num + 1;    // 01-98
     end
-    assign next_num = (num + 1) % 8'd99;
+    assign next_num = (num + 1) % 8'd98;
 
     reg [3:0] state, next_state;
     reg [7:0] right, next_right;
@@ -437,10 +436,10 @@ module KeyboardDecoder(
     		key_down <= 511'b0;
     	end else if (key_decode[last_change] && pulse_been_ready) begin
     		key_valid <= 1'b1;
-    		if (key[8] == 0) begin
-    			key_down <= key_down | key_decode;
+    		if (key[8] == 0) begin    // key[8] is break code
+    			key_down <= key_down | key_decode;  // key is pressed
     		end else begin
-    			key_down <= key_down & (~key_decode);
+    			key_down <= key_down & (~key_decode);  // key is released
     		end
     	end else begin
     		key_valid <= 1'b0;
