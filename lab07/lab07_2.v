@@ -20,14 +20,12 @@ module lab07_2 (
     wire [16:0] pixel_addr;
     wire [11:0] pixel;
     wire valid;
-    wire [9:0] count;
     wire [2:0] state;
     wire [9:0] h_cnt; // 640
     wire [9:0] v_cnt; // 480
 
-    wire clk_25MHz, clk_div_16, clk_div_22;
+    wire clk_25MHz, clk_div_22;
     clock_divider #(.n(2)) c1 (.clk(clk), .clk_div(clk_25MHz)); //clk/2^2 = 25MHz
-    clock_divider #(.n(16)) c2 (.clk(clk), .clk_div(clk_div_16));
     clock_divider #(.n(22)) c3 (.clk(clk), .clk_div(clk_div_22));
 
     wire db_rst, db_shift, db_split;
@@ -39,24 +37,37 @@ module lab07_2 (
     one_pulse o1 (db_rst, clk_div_22, db_shift, op_shift);
     one_pulse o2 (db_rst, clk_div_22, db_split, op_split);
 
+    wire [9:0] count;
+    wire [9:0] count_h;
+
     always @ ( * ) begin
         led = 5'b0;
         if (!valid)
             {vgaRed, vgaGreen, vgaBlue} = 12'h0;
         else if (state == `INITIAL) begin
             led = 5'b11111;
-            if (op_shift)
-                led = 5'b00001;
             {vgaRed, vgaGreen, vgaBlue} = pixel;
         end else if (state==`SHIFT_LEFT) begin
             led = 5'b00010;
-            if ((h_cnt < 640 - count))
+            if ((h_cnt>>1) < 320 - count)
                 {vgaRed, vgaGreen, vgaBlue} = pixel;
             else
                 {vgaRed, vgaGreen, vgaBlue} = 12'h0;
         end else if (state==`SHIFT_DOWN) begin
             led = 5'b00100;
-            if ((v_cnt <= count))
+            if ((v_cnt>>1) < count)
+                {vgaRed, vgaGreen, vgaBlue} = pixel;
+            else
+                {vgaRed, vgaGreen, vgaBlue} = 12'h0;
+        end else if (state==`SPLIT) begin
+            led = 5'b01000;
+            if ((v_cnt>>1 < 120 - count) && (h_cnt>>1  < 160))
+                {vgaRed, vgaGreen, vgaBlue} = pixel;
+            else if ((v_cnt>>1  < 120) && (h_cnt>>1 > 160 + count_h))
+                {vgaRed, vgaGreen, vgaBlue} = pixel;
+            else if ((v_cnt>>1  >= 120) && (h_cnt>>1  <= 160 - count_h))
+                {vgaRed, vgaGreen, vgaBlue} = pixel;
+            else if ((v_cnt>>1  > 120 + count) && (h_cnt>>1  >= 160))
                 {vgaRed, vgaGreen, vgaBlue} = pixel;
             else
                 {vgaRed, vgaGreen, vgaBlue} = 12'h0;
@@ -72,6 +83,7 @@ module lab07_2 (
      .h_cnt(h_cnt),
      .v_cnt(v_cnt),
      .count(count),
+     .count_h(count_h),
      .state(state),
      .pixel_addr(pixel_addr)
     );
@@ -130,6 +142,7 @@ module debounce (pb_debounced, pb, clk);
 
 endmodule
 
+
 module one_pulse (
     input wire rst,
     input wire clk,
@@ -165,35 +178,32 @@ module mem_addr_gen(
     input [9:0] h_cnt,
     input [9:0] v_cnt,
     output reg [9:0] count,
+    output reg [9:0] count_h,
     output reg [2:0] state,
-    output [16:0] pixel_addr
+    output reg [16:0] pixel_addr
    );
 
    reg [2:0] next_state;
-   reg [8:0] pos_x, pos_y, next_pos_x, next_pos_y;
    reg [16:0] pixel_addr_temp;
-   reg [9:0] next_count;
-   reg border;
+   reg [9:0] count, count_h;
+   reg [9:0] next_count, next_count_h;
 
    always @ (posedge clk or posedge rst) begin
        if (rst) begin
            state <= `INITIAL;
-           pos_x <= 9'b0;
-           pos_y <= 9'b0;
            count <= 10'b0;
+           count_h <= 10'b0;
        end else begin
            state = next_state;
-           pos_x <= next_pos_x;
-           pos_y <= next_pos_y;
            count <= next_count;
+           count_h <= next_count_h;
        end
     end
 
     always @ ( * ) begin
         next_state = state;
-        next_pos_x = pos_x;
-        next_pos_y = pos_y;
         next_count = count;
+        next_count_h = count_h;
         case (state)
             `INITIAL: begin
                 if (shift) begin
@@ -203,7 +213,7 @@ module mem_addr_gen(
                 end
             end
             `SHIFT_LEFT: begin
-                if (count == 10'd640) begin
+                if (count == 10'd320) begin
                     next_count = 0;
                     next_state = `SHIFT_DOWN;
                 end else begin
@@ -211,7 +221,7 @@ module mem_addr_gen(
                 end
             end
             `SHIFT_DOWN: begin
-                if (count == 10'd480) begin
+                if (count == 10'd240) begin
                     next_count = 0;
                     next_state = `INITIAL;
                 end else begin
@@ -219,12 +229,33 @@ module mem_addr_gen(
                 end
             end
             `SPLIT: begin
-
+                if (count_h == 10'd160) begin
+                    {next_count, next_count_h} = 0;
+                    next_state = `INITIAL;
+                end else begin
+                    next_count_h= count_h + 1;
+                    next_count = (count < 120)? count + 1:count;
+                end
             end
        endcase
-   end
+    end
 
-   assign pixel_addr = (((h_cnt>>1)+pos_x)%320 + 320*(v_cnt>>1) + 320*pos_y)% 76800;
+    always @(*) begin
+        if (state == `SPLIT) begin
+            if (h_cnt < 320 && v_cnt < 240) begin   // upper left: shift up
+                pixel_addr = ((h_cnt>>1)+ 320*(v_cnt>>1) + 320*count)% 76800;
+            end else if (h_cnt >= 320 && v_cnt < 240) begin // upper right: shift right
+                pixel_addr = (((h_cnt>>1) + (320-count_h))%320 + 320*(v_cnt>>1))% 76800;
+            end else if (h_cnt < 320 && v_cnt >= 240) begin // lower left: shift left
+                pixel_addr = (((h_cnt>>1) + count_h)%320 + 320*(v_cnt>>1))% 76800;
+            end else if (h_cnt >= 320 && v_cnt >= 240) begin    // lower right: shift down
+                pixel_addr = ((h_cnt>>1)+ 320*(v_cnt>>1) + 320*(240-count))% 76800;
+            end else begin
+                pixel_addr = ((h_cnt>>1)%320 + 320*(v_cnt>>1))% 76800;
+            end
+        end else    // 640x480->320x240
+            pixel_addr = (((h_cnt>>1))%320 + 320*(v_cnt>>1))% 76800;
+    end
 
 endmodule
 
