@@ -3,8 +3,15 @@
 `define he  32'd660   // E4
 `define hf  32'd698   // F4
 `define hg  32'd784   // G4
+`define ha  32'd880   // A4
+`define hb  32'd988   // B4
+
 `define c   32'd262   // C3
+`define d   32'd294   // D3
+`define e   32'd294   // E3
+`define f   32'd349   // F3
 `define g   32'd392   // G3
+`define a   32'd440   // A3
 `define b   32'd494   // B3
 `define sil   32'd50000000 // slience
 
@@ -12,8 +19,10 @@ module music_example (
 	input [11:0] ibeatNum,
 	input en,
 	output reg [31:0] toneL,
-    output reg [31:0] toneR
+    output reg [31:0] toneR,
+    output reg [3:0] curNote
 );
+
 
     always @* begin
         if(en == 1) begin
@@ -94,7 +103,7 @@ module music_example (
                 default: toneR = `sil;
             endcase
         end else begin
-            // en == 1
+            // en == 0
             case(ibeatNum)
                 // --- Measure 1 ---
                 12'd0: toneR = `sil;     12'd1: toneR = `sil; // break (2-beat)
@@ -105,8 +114,8 @@ module music_example (
                 12'd10: toneR = `sil;     12'd11: toneR = `sil;
                 12'd12: toneR = `sil;     12'd13: toneR = `sil;
                 12'd14: toneR = `sil;     12'd15: toneR = `sil;
-                
-                12'd16: toneR = `sil;     12'd17: toneR = `sil; 
+
+                12'd16: toneR = `sil;     12'd17: toneR = `sil;
                 12'd18: toneR = `sil;     12'd19: toneR = `sil;
                 12'd20: toneR = `sil;     12'd21: toneR = `sil;
                 12'd22: toneR = `sil;     12'd23: toneR = `sil;
@@ -114,16 +123,16 @@ module music_example (
                 12'd26: toneR = `sil;     12'd27: toneR = `sil;
                 12'd28: toneR = `sil;     12'd29: toneR = `sil;
                 12'd30: toneR = `sil;     12'd31: toneR = `sil;
-                
+
                 12'd32: toneR = `sil;     12'd33: toneR = `sil; // break (half-beat)
                 12'd34: toneR = `sil;     12'd35: toneR = `sil;
                 12'd36: toneR = `sil;     12'd37: toneR = `sil;
                 12'd38: toneR = `sil;     12'd39: toneR = `sil;
                 12'd40: toneR = `hg;     12'd41: toneR = `hg; // HG(half-beat)
-                12'd42: toneR = `hg;     12'd43: toneR = `hg; 
+                12'd42: toneR = `hg;     12'd43: toneR = `hg;
                 12'd44: toneR = `hg;     12'd45: toneR = `hg;
                 12'd46: toneR = `hg;     12'd47: toneR = `hg;
-                
+
                 12'd48: toneR = `hf;     12'd49: toneR = `hf; // HF (half-beat)
                 12'd50: toneR = `hf;     12'd51: toneR = `hf;
                 12'd52: toneR = `hf;     12'd53: toneR = `hf;
@@ -132,13 +141,13 @@ module music_example (
                 12'd58: toneR = `he;     12'd59: toneR = `he;
                 12'd60: toneR = `he;     12'd61: toneR = `he;
                 12'd62: toneR = `he;     12'd63: toneR = `he;
-                
+
                 // --- Measure 2 ---
                 12'd64: toneR = `he;     12'd65: toneR = `he; // HE (one-beat)
                 12'd66: toneR = `he;     12'd67: toneR = `he;
                 12'd68: toneR = `he;     12'd69: toneR = `he;
                 12'd70: toneR = `he;     12'd71: toneR = `he;
-                12'd72: toneR = `he;     12'd73: toneR = `he; 
+                12'd72: toneR = `he;     12'd73: toneR = `he;
                 12'd74: toneR = `he;     12'd75: toneR = `he;
                 12'd76: toneR = `he;     12'd77: toneR = `he;
                 12'd78: toneR = `he;     12'd79: toneR = `he;
@@ -147,16 +156,16 @@ module music_example (
                 12'd82: toneR = `hf;     12'd83: toneR = `hf;
                 12'd84: toneR = `hf;     12'd85: toneR = `hf;
                 12'd86: toneR = `hf;     12'd87: toneR = `hf;
-                
+
                 12'd88: toneR = `he;     12'd89: toneR = `he; // HE (half-beat)
                 12'd90: toneR = `he;     12'd91: toneR = `he;
                 12'd92: toneR = `he;     12'd93: toneR = `he;
                 12'd94: toneR = `he;     12'd95: toneR = `he;
-                12'd96: toneR = `he;     12'd97: toneR = `he; 
+                12'd96: toneR = `he;     12'd97: toneR = `he;
                 12'd98: toneR = `he;     12'd99: toneR = `he;
                 12'd100: toneR = `he;     12'd101: toneR = `he;
-                12'd102: toneR = `he;     12'd103: toneR = `he; 
-                
+                12'd102: toneR = `he;     12'd103: toneR = `he;
+
                 12'd104: toneR = `hd;     12'd105: toneR = `hd; // HD (one-beat)
                 12'd106: toneR = `hd;     12'd107: toneR = `hd;
                 12'd108: toneR = `hd;     12'd109: toneR = `hd;
@@ -165,8 +174,8 @@ module music_example (
                 12'd114: toneR = `hd;     12'd115: toneR = `hd;
                 12'd116: toneR = `hd;     12'd117: toneR = `hd;
                 12'd118: toneR = `hd;     12'd119: toneR = `hd;
-                
-                12'd120: toneR = `hc;     12'd121: toneR = `hc; // HC
+
+                12'd120: toneR = `hc;     12'd121: toneR = `hc; // HC (half-beat)
                 12'd122: toneR = `hc;     12'd123: toneR = `hc;
                 12'd124: toneR = `hc;     12'd125: toneR = `hc;
                 12'd126: toneR = `hc;     12'd127: toneR = `hc;
@@ -256,4 +265,25 @@ module music_example (
             toneL = `sil;
         end
     end
+
+    always @* begin
+        case(toneR)
+            `hc: curNote = 4'd1;
+            `hd: curNote = 4'd2;
+            `he: curNote = 4'd3;
+            `hf: curNote = 4'd4;
+            `hg: curNote = 4'd5;
+            `ha: curNote = 4'd6;
+            `hb: curNote = 4'd7;
+            `c: curNote = 4'd1;
+            `d: curNote = 4'd2;
+            `e: curNote = 4'd3;
+            `f: curNote = 4'd4;
+            `g: curNote = 4'd5;
+            `a: curNote = 4'd6;
+            `b: curNote = 4'd7;
+            default: curNote = 4'd10;
+        endcase
+    end
+
 endmodule

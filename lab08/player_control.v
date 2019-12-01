@@ -5,26 +5,27 @@ module player_control (
 	input _repeat,
 	input _music,
     output reg in_pause,
-	output reg [11:0] ibeat
+	output reg [11:0] ibeat,
+	output reg [1:0] state
 );
 	//parameter LEN = 4095;
 	parameter LEN = 127;
 	parameter LEN2 = 127;
-	
+
     parameter INIT = 2'd0;
     parameter PLAY = 2'd1;
     parameter PAUSE = 2'd2;
     parameter STOP = 2'd3;
-    
+
     reg [11:0] next_ibeat;
-    reg [1:0] state, next_state;
+    reg [1:0] next_state;
     wire [11:0] beatLen;
     wire switched;
     reg last_music;
-    
+
     assign beatLen = (_music == 0)? LEN:LEN2;
     assign switched = (last_music != _music) ? 1'b1: 1'b0;
-    
+
     always @(posedge clk or posedge reset) begin
         last_music <= _music;
         if (reset || switched)
@@ -40,7 +41,7 @@ module player_control (
             state <= next_state;
         end
     end
-    
+
     always @ (*) begin
         next_state = state;
         next_ibeat = ibeat;
@@ -78,7 +79,7 @@ module player_control (
             end
         endcase
     end
-    
+
 //	always @(posedge clk, posedge reset) begin
 //		if (reset)
 //			ibeat <= 0;

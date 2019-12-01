@@ -20,7 +20,7 @@ module speaker_control(
     output audio_sdin; // serial audio data input
     reg audio_sdin;
 
-    // Declare internal signal nodes 
+    // Declare internal signal nodes
     wire [8:0] clk_cnt_next;
     reg [8:0] clk_cnt;
     reg [15:0] audio_left, audio_right;
