@@ -8,9 +8,7 @@ module player_control (
 	output reg [11:0] ibeat,
 	output reg [1:0] state
 );
-	//parameter LEN = 4095;
-	parameter LEN = 127;
-	parameter LEN2 = 127;
+	  parameter LEN = 4095;
 
     parameter INIT = 2'd0;
     parameter PLAY = 2'd1;
@@ -23,7 +21,7 @@ module player_control (
     wire switched;
     reg last_music;
 
-    assign beatLen = (_music == 0)? LEN:LEN2;
+    assign beatLen = (_music == 1)? 512:544;
     assign switched = (last_music != _music) ? 1'b1: 1'b0;
 
     always @(posedge clk or posedge reset) begin
